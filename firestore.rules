@@ -1,0 +1,924 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidEmailId(id) {
+      return id is string && id.size() >= 3 && id.size() <= 200 && id.matches('^[^/@\\s]+@[^/@\\s]+\\.[^/@\\s]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isBootstrapAdmin() {
+      return isVerified() && request.auth.token.email == 'martynocoaching@gmail.com';
+    }
+
+    function isAdmin() {
+      return isVerified() && (
+        request.auth.token.email == 'martynocoaching@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email != null && exists(/databases/$(database)/documents/adminInvites/$(request.auth.token.email)))
+      );
+    }
+
+    function isClientDocOwner(data) {
+      return isVerified() && (
+        data.createdByUid == request.auth.uid ||
+        ('ownerUid' in data && data.ownerUid != '' && data.ownerUid == request.auth.uid) ||
+        (data.contactEmail != '' && data.contactEmail == request.auth.token.email)
+      );
+    }
+
+    function canAccessClient(clientId) {
+      return isVerified()
+        && exists(/databases/$(database)/documents/clientAccounts/$(clientId))
+        && (isAdmin() || isClientDocOwner(get(/databases/$(database)/documents/clientAccounts/$(clientId)).data));
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'role', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'role', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.email is string && data.email.size() <= 200
+        && data.displayName is string && data.displayName.size() <= 120
+        && data.role in ['client', 'super_admin']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'grantedBy', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'grantedBy', 'createdAt'])
+        && isValidId(data.uid)
+        && data.email is string && data.email.size() <= 200
+        && data.grantedBy is string && data.grantedBy.size() >= 1 && data.grantedBy.size() <= 128
+        && data.createdAt is timestamp;
+    }
+
+    function isValidAdminInvite(data) {
+      return data.keys().hasAll(['email', 'grantedBy', 'createdAt'])
+        && data.keys().hasOnly(['email', 'note', 'grantedBy', 'createdAt'])
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
+        && (!('note' in data) || (data.note is string && data.note.size() <= 160))
+        && data.grantedBy is string && data.grantedBy.size() >= 1 && data.grantedBy.size() <= 128
+        && data.createdAt is timestamp;
+    }
+
+    function isValidClientAccount(data) {
+      return data.keys().hasAll([
+          'id',
+          'businessName',
+          'contactEmail',
+          'status',
+          'activeUnits',
+          'monthlySubscriptionFee',
+          'monthlyCredit',
+          'totalMonthlyBill',
+          'adProgramOptedIn',
+          'creditPerUnitMonthly',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'businessName',
+          'tagline',
+          'contactEmail',
+          'ownerUid',
+          'accentTheme',
+          'status',
+          'activeUnits',
+          'monthlyBaseFeePerUnit',
+          'monthlySubscriptionFee',
+          'monthlyCredit',
+          'totalMonthlyBill',
+          'adProgramOptedIn',
+          'creditPerUnitMonthly',
+          'rotationRatioLabel',
+          'adActiveSince',
+          'lastPublishedAt',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.businessName is string && data.businessName.size() >= 1 && data.businessName.size() <= 120
+        && (!('tagline' in data) || (data.tagline is string && data.tagline.size() <= 160))
+        && data.contactEmail is string && data.contactEmail.size() <= 200
+        && (!('ownerUid' in data) || (data.ownerUid is string && data.ownerUid.size() <= 128))
+        && (!('accentTheme' in data) || data.accentTheme in ['amber', 'emerald', 'crimson', 'slate'])
+        && data.status in ['active', 'onboarding', 'paused']
+        && data.activeUnits is int && data.activeUnits >= 0 && data.activeUnits <= 5000
+        && (!('monthlyBaseFeePerUnit' in data) || ((data.monthlyBaseFeePerUnit is int || data.monthlyBaseFeePerUnit is float) && data.monthlyBaseFeePerUnit >= 0 && data.monthlyBaseFeePerUnit <= 10000))
+        && (data.monthlySubscriptionFee is int || data.monthlySubscriptionFee is float)
+        && data.monthlySubscriptionFee >= 0 && data.monthlySubscriptionFee <= 1000000
+        && (data.monthlyCredit is int || data.monthlyCredit is float)
+        && data.monthlyCredit >= 0 && data.monthlyCredit <= 1000000
+        && (data.totalMonthlyBill is int || data.totalMonthlyBill is float)
+        && data.totalMonthlyBill >= 0 && data.totalMonthlyBill <= 1000000
+        && data.adProgramOptedIn is bool
+        && (data.creditPerUnitMonthly is int || data.creditPerUnitMonthly is float)
+        && data.creditPerUnitMonthly >= 0 && data.creditPerUnitMonthly <= 1000
+        && (!('rotationRatioLabel' in data) || (data.rotationRatioLabel is string && data.rotationRatioLabel.size() <= 120))
+        && (!('adActiveSince' in data) || (data.adActiveSince is string && data.adActiveSince.size() <= 60))
+        && (!('lastPublishedAt' in data) || (data.lastPublishedAt is string && data.lastPublishedAt.size() <= 60))
+        && isValidId(data.createdByUid)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPromotionRecord(data) {
+      return data.keys().hasAll([
+          'id',
+          'clientId',
+          'createdByUid',
+          'clientContactEmail',
+          'sortOrder',
+          'title',
+          'scheduleLabel',
+          'subtitle',
+          'ctaLabel',
+          'durationSec',
+          'mediaUrl',
+          'mediaKind',
+          'mediaAssetId',
+          'active',
+          'scheduleMode',
+          'startDate',
+          'endDate',
+          'startTime',
+          'endTime',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'clientId',
+          'createdByUid',
+          'clientContactEmail',
+          'sortOrder',
+          'title',
+          'scheduleLabel',
+          'subtitle',
+          'ctaLabel',
+          'durationSec',
+          'mediaUrl',
+          'mediaKind',
+          'mediaAssetId',
+          'active',
+          'scheduleMode',
+          'startDate',
+          'endDate',
+          'startTime',
+          'endTime',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.clientId)
+        && isValidId(data.createdByUid)
+        && data.clientContactEmail is string && data.clientContactEmail.size() <= 200
+        && data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 1000
+        && data.title is string && data.title.size() <= 140
+        && data.scheduleLabel is string && data.scheduleLabel.size() <= 140
+        && data.subtitle is string && data.subtitle.size() <= 400
+        && data.ctaLabel is string && data.ctaLabel.size() <= 60
+        && data.durationSec is int && data.durationSec >= 1 && data.durationSec <= 300
+        && data.mediaUrl is string && data.mediaUrl.size() <= 1000
+        && data.mediaKind in ['image', 'video']
+        && data.mediaAssetId is string && data.mediaAssetId.size() <= 128
+        && data.active is bool
+        && data.scheduleMode in ['always', 'scheduled']
+        && data.startDate is string && data.startDate.size() <= 20
+        && data.endDate is string && data.endDate.size() <= 20
+        && data.startTime is string && data.startTime.size() <= 10
+        && data.endTime is string && data.endTime.size() <= 10
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMenuCategoryRecord(data) {
+      return data.keys().hasAll([
+          'id',
+          'clientId',
+          'createdByUid',
+          'clientContactEmail',
+          'name',
+          'sortOrder',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'clientId',
+          'createdByUid',
+          'clientContactEmail',
+          'name',
+          'sortOrder',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.clientId)
+        && isValidId(data.createdByUid)
+        && data.clientContactEmail is string && data.clientContactEmail.size() <= 200
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
+        && data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 500
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMenuItemRecord(data) {
+      return data.keys().hasAll([
+          'id',
+          'clientId',
+          'createdByUid',
+          'clientContactEmail',
+          'categoryId',
+          'categoryName',
+          'name',
+          'description',
+          'dietaryNotes',
+          'price',
+          'mediaUrl',
+          'mediaAssetId',
+          'available',
+          'featured',
+          'sortOrder',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'clientId',
+          'createdByUid',
+          'clientContactEmail',
+          'categoryId',
+          'categoryName',
+          'categoryIds',
+          'categoryNames',
+          'name',
+          'description',
+          'dietaryNotes',
+          'price',
+          'mediaUrl',
+          'mediaAssetId',
+          'available',
+          'featured',
+          'sortOrder',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.clientId)
+        && isValidId(data.createdByUid)
+        && data.clientContactEmail is string && data.clientContactEmail.size() <= 200
+        && data.categoryId is string && data.categoryId.size() <= 128
+        && data.categoryName is string && data.categoryName.size() <= 80
+        && (!('categoryIds' in data) || (
+          data.categoryIds is list
+          && data.categoryIds.size() <= 30
+          && (data.categoryIds.size() == 0 || (data.categoryIds[0] is string && data.categoryIds[0].size() >= 1 && data.categoryIds[0].size() <= 128))
+        ))
+        && (!('categoryNames' in data) || (
+          data.categoryNames is list
+          && data.categoryNames.size() <= 30
+          && (data.categoryNames.size() == 0 || (data.categoryNames[0] is string && data.categoryNames[0].size() >= 1 && data.categoryNames[0].size() <= 80))
+        ))
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.description is string && data.description.size() <= 500
+        && data.dietaryNotes is string && data.dietaryNotes.size() <= 120
+        && (data.price is int || data.price is float) && data.price >= 0 && data.price <= 50000
+        && data.mediaUrl is string && data.mediaUrl.size() <= 1000
+        && data.mediaAssetId is string && data.mediaAssetId.size() <= 128
+        && data.available is bool
+        && data.featured is bool
+        && data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 5000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidDailySpecialRecord(data) {
+      return data.keys().hasAll([
+          'id',
+          'clientId',
+          'createdByUid',
+          'clientContactEmail',
+          'title',
+          'windowLabel',
+          'description',
+          'specialPrice',
+          'regularPrice',
+          'mediaUrl',
+          'mediaKind',
+          'mediaAssetId',
+          'active',
+          'sortOrder',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'clientId',
+          'createdByUid',
+          'clientContactEmail',
+          'title',
+          'windowLabel',
+          'description',
+          'specialPrice',
+          'regularPrice',
+          'mediaUrl',
+          'mediaKind',
+          'mediaAssetId',
+          'active',
+          'sortOrder',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.clientId)
+        && isValidId(data.createdByUid)
+        && data.clientContactEmail is string && data.clientContactEmail.size() <= 200
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.windowLabel is string && data.windowLabel.size() <= 120
+        && data.description is string && data.description.size() <= 500
+        && (data.specialPrice is int || data.specialPrice is float) && data.specialPrice >= 0 && data.specialPrice <= 50000
+        && (data.regularPrice is int || data.regularPrice is float) && data.regularPrice >= 0 && data.regularPrice <= 50000
+        && data.mediaUrl is string && data.mediaUrl.size() <= 1000
+        && data.mediaKind in ['image', 'video']
+        && data.mediaAssetId is string && data.mediaAssetId.size() <= 128
+        && data.active is bool
+        && data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 1000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMediaAssetRecord(data) {
+      return data.keys().hasAll([
+          'id',
+          'clientId',
+          'createdByUid',
+          'clientContactEmail',
+          'url',
+          'kind',
+          'sourceType',
+          'sourceId',
+          'label',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'clientId',
+          'createdByUid',
+          'clientContactEmail',
+          'url',
+          'kind',
+          'sourceType',
+          'sourceId',
+          'label',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.clientId)
+        && isValidId(data.createdByUid)
+        && data.clientContactEmail is string && data.clientContactEmail.size() <= 200
+        && data.url is string && data.url.size() >= 1 && data.url.size() <= 1000
+        && data.kind in ['image', 'video']
+        && data.sourceType in ['promotion', 'menu', 'special']
+        && data.sourceId is string && data.sourceId.size() <= 128
+        && data.label is string && data.label.size() <= 140
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidDeviceScreenRecord(data) {
+      return data.keys().hasAll([
+          'id',
+          'clientId',
+          'createdByUid',
+          'clientContactEmail',
+          'name',
+          'locationZone',
+          'orientation',
+          'pairingCode',
+          'status',
+          'sortOrder',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'clientId',
+          'createdByUid',
+          'clientContactEmail',
+          'name',
+          'locationZone',
+          'orientation',
+          'pairingCode',
+          'status',
+          'sortOrder',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.clientId)
+        && isValidId(data.createdByUid)
+        && data.clientContactEmail is string && data.clientContactEmail.size() <= 200
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && data.locationZone is string && data.locationZone.size() <= 80
+        && data.orientation in ['portrait-9-16', 'landscape-10']
+        && data.pairingCode is string && data.pairingCode.size() >= 1 && data.pairingCode.size() <= 24
+        && data.status in ['active', 'paused']
+        && data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 5000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminNetworkAd(data) {
+      return data.keys().hasAll([
+          'id',
+          'sponsorName',
+          'headline',
+          'bodyCopy',
+          'mediaUrl',
+          'mediaKind',
+          'durationSec',
+          'categoryTag',
+          'active',
+          'targetScope',
+          'targetClientIds',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'sponsorName',
+          'headline',
+          'bodyCopy',
+          'mediaUrl',
+          'mediaKind',
+          'durationSec',
+          'categoryTag',
+          'active',
+          'targetScope',
+          'targetClientIds',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.sponsorName is string && data.sponsorName.size() <= 120
+        && data.headline is string && data.headline.size() <= 140
+        && data.bodyCopy is string && data.bodyCopy.size() <= 400
+        && data.mediaUrl is string && data.mediaUrl.size() >= 1 && data.mediaUrl.size() <= 1000
+        && data.mediaKind in ['image', 'video']
+        && data.durationSec is int && data.durationSec >= 1 && data.durationSec <= 120
+        && data.categoryTag is string && data.categoryTag.size() <= 80
+        && data.active is bool
+        && data.targetScope in ['all', 'selected']
+        && data.targetClientIds is list
+        && data.targetClientIds.size() <= 100
+        && (data.targetClientIds.size() == 0 || (data.targetClientIds[0] is string && data.targetClientIds[0].size() <= 128))
+        && isValidId(data.createdByUid)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isBootstrapAdmin();
+      allow create: if isVerified()
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == userId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && ((isOwner(userId) && incoming().role == 'client') || isAdmin());
+      allow update: if isVerified()
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (isOwner(userId)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'updatedAt'])
+            && incoming().role == existing().role)
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isBootstrapAdmin();
+      allow create: if isVerified()
+        && isValidId(userId)
+        && isValidAdminUser(incoming())
+        && incoming().uid == userId
+        && incoming().createdAt == request.time
+        && isAdmin();
+      allow update: if false;
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /adminInvites/{inviteEmail} {
+      allow get: if isValidEmailId(inviteEmail)
+        && ((isVerified() && request.auth.token.email == inviteEmail) || isAdmin());
+      allow list: if isVerified() && (isBootstrapAdmin() || resource.data.grantedBy == request.auth.uid);
+      allow create: if isVerified()
+        && isValidEmailId(inviteEmail)
+        && isValidAdminInvite(incoming())
+        && incoming().email == inviteEmail
+        && incoming().grantedBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && isAdmin();
+      allow update: if false;
+      allow delete: if isValidEmailId(inviteEmail) && isAdmin();
+    }
+
+    match /clientAccounts/{clientId} {
+      allow get: if isValidId(clientId) && (isAdmin() || isClientDocOwner(existing()));
+      allow list: if isVerified() && (
+        resource.data.createdByUid == request.auth.uid ||
+        ('ownerUid' in resource.data && resource.data.ownerUid == request.auth.uid) ||
+        (resource.data.contactEmail != '' && resource.data.contactEmail == request.auth.token.email) ||
+        isBootstrapAdmin()
+      );
+      allow create: if isVerified()
+        && isValidId(clientId)
+        && isValidClientAccount(incoming())
+        && incoming().id == clientId
+        && incoming().createdByUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (('ownerUid' in incoming() && incoming().ownerUid == request.auth.uid) && incoming().status == 'active')
+        );
+      allow update: if isVerified()
+        && isValidId(clientId)
+        && isValidClientAccount(incoming())
+        && incoming().id == existing().id
+        && incoming().createdByUid == existing().createdByUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly([
+            'businessName',
+            'tagline',
+            'contactEmail',
+            'ownerUid',
+            'accentTheme',
+            'status',
+            'activeUnits',
+            'monthlyBaseFeePerUnit',
+            'monthlySubscriptionFee',
+            'monthlyCredit',
+            'totalMonthlyBill',
+            'adProgramOptedIn',
+            'creditPerUnitMonthly',
+            'rotationRatioLabel',
+            'adActiveSince',
+            'lastPublishedAt',
+            'updatedAt'
+          ])) ||
+          (isClientDocOwner(existing()) && incoming().diff(existing()).affectedKeys().hasOnly([
+            'businessName',
+            'tagline',
+            'accentTheme',
+            'activeUnits',
+            'monthlyCredit',
+            'totalMonthlyBill',
+            'adProgramOptedIn',
+            'lastPublishedAt',
+            'updatedAt'
+          ]) && incoming().monthlySubscriptionFee == existing().monthlySubscriptionFee
+            && incoming().creditPerUnitMonthly == existing().creditPerUnitMonthly)
+        );
+      allow delete: if isValidId(clientId) && isAdmin();
+
+      match /promotions/{promoId} {
+        allow get: if isValidId(clientId) && isValidId(promoId) && canAccessClient(clientId);
+        allow list: if isVerified() && (
+          resource.data.createdByUid == request.auth.uid ||
+          (resource.data.clientContactEmail != '' && resource.data.clientContactEmail == request.auth.token.email) ||
+          isBootstrapAdmin()
+        );
+        allow create: if isVerified()
+          && isValidId(clientId)
+          && isValidId(promoId)
+          && isValidPromotionRecord(incoming())
+          && incoming().id == promoId
+          && incoming().clientId == clientId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && (incoming().createdByUid == request.auth.uid || isAdmin())
+          && canAccessClient(clientId);
+        allow update: if isVerified()
+          && isValidId(clientId)
+          && isValidId(promoId)
+          && isValidPromotionRecord(incoming())
+          && incoming().id == existing().id
+          && incoming().clientId == existing().clientId
+          && incoming().createdByUid == existing().createdByUid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'clientContactEmail',
+            'sortOrder',
+            'title',
+            'scheduleLabel',
+            'subtitle',
+            'ctaLabel',
+            'durationSec',
+            'mediaUrl',
+            'mediaKind',
+            'mediaAssetId',
+            'active',
+            'scheduleMode',
+            'startDate',
+            'endDate',
+            'startTime',
+            'endTime',
+            'updatedAt'
+          ])
+          && canAccessClient(clientId);
+        allow delete: if isValidId(clientId) && isValidId(promoId) && canAccessClient(clientId);
+      }
+
+      match /menuCategories/{categoryId} {
+        allow get: if isValidId(clientId) && isValidId(categoryId) && canAccessClient(clientId);
+        allow list: if isVerified() && (
+          resource.data.createdByUid == request.auth.uid ||
+          (resource.data.clientContactEmail != '' && resource.data.clientContactEmail == request.auth.token.email) ||
+          isBootstrapAdmin()
+        );
+        allow create: if isVerified()
+          && isValidId(clientId)
+          && isValidId(categoryId)
+          && isValidMenuCategoryRecord(incoming())
+          && incoming().id == categoryId
+          && incoming().clientId == clientId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && (incoming().createdByUid == request.auth.uid || isAdmin())
+          && canAccessClient(clientId);
+        allow update: if isVerified()
+          && isValidId(clientId)
+          && isValidId(categoryId)
+          && isValidMenuCategoryRecord(incoming())
+          && incoming().id == existing().id
+          && incoming().clientId == existing().clientId
+          && incoming().createdByUid == existing().createdByUid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'clientContactEmail',
+            'name',
+            'sortOrder',
+            'updatedAt'
+          ])
+          && canAccessClient(clientId);
+        allow delete: if isValidId(clientId) && isValidId(categoryId) && canAccessClient(clientId);
+      }
+
+      match /menuItems/{itemId} {
+        allow get: if isValidId(clientId) && isValidId(itemId) && canAccessClient(clientId);
+        allow list: if isVerified() && (
+          resource.data.createdByUid == request.auth.uid ||
+          (resource.data.clientContactEmail != '' && resource.data.clientContactEmail == request.auth.token.email) ||
+          isBootstrapAdmin()
+        );
+        allow create: if isVerified()
+          && isValidId(clientId)
+          && isValidId(itemId)
+          && isValidMenuItemRecord(incoming())
+          && incoming().id == itemId
+          && incoming().clientId == clientId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && (incoming().createdByUid == request.auth.uid || isAdmin())
+          && canAccessClient(clientId);
+        allow update: if isVerified()
+          && isValidId(clientId)
+          && isValidId(itemId)
+          && isValidMenuItemRecord(incoming())
+          && incoming().id == existing().id
+          && incoming().clientId == existing().clientId
+          && incoming().createdByUid == existing().createdByUid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'clientContactEmail',
+            'categoryId',
+            'categoryName',
+            'categoryIds',
+            'categoryNames',
+            'name',
+            'description',
+            'dietaryNotes',
+            'price',
+            'mediaUrl',
+            'mediaAssetId',
+            'available',
+            'featured',
+            'sortOrder',
+            'updatedAt'
+          ])
+          && canAccessClient(clientId);
+        allow delete: if isValidId(clientId) && isValidId(itemId) && canAccessClient(clientId);
+      }
+
+      match /specials/{specialId} {
+        allow get: if isValidId(clientId) && isValidId(specialId) && canAccessClient(clientId);
+        allow list: if isVerified() && (
+          resource.data.createdByUid == request.auth.uid ||
+          (resource.data.clientContactEmail != '' && resource.data.clientContactEmail == request.auth.token.email) ||
+          isBootstrapAdmin()
+        );
+        allow create: if isVerified()
+          && isValidId(clientId)
+          && isValidId(specialId)
+          && isValidDailySpecialRecord(incoming())
+          && incoming().id == specialId
+          && incoming().clientId == clientId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && (incoming().createdByUid == request.auth.uid || isAdmin())
+          && canAccessClient(clientId);
+        allow update: if isVerified()
+          && isValidId(clientId)
+          && isValidId(specialId)
+          && isValidDailySpecialRecord(incoming())
+          && incoming().id == existing().id
+          && incoming().clientId == existing().clientId
+          && incoming().createdByUid == existing().createdByUid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'clientContactEmail',
+            'title',
+            'windowLabel',
+            'description',
+            'specialPrice',
+            'regularPrice',
+            'mediaUrl',
+            'mediaKind',
+            'mediaAssetId',
+            'active',
+            'sortOrder',
+            'updatedAt'
+          ])
+          && canAccessClient(clientId);
+        allow delete: if isValidId(clientId) && isValidId(specialId) && canAccessClient(clientId);
+      }
+
+      match /mediaAssets/{assetId} {
+        allow get: if isValidId(clientId) && isValidId(assetId) && canAccessClient(clientId);
+        allow list: if isVerified() && (
+          resource.data.createdByUid == request.auth.uid ||
+          (resource.data.clientContactEmail != '' && resource.data.clientContactEmail == request.auth.token.email) ||
+          isBootstrapAdmin()
+        );
+        allow create: if isVerified()
+          && isValidId(clientId)
+          && isValidId(assetId)
+          && isValidMediaAssetRecord(incoming())
+          && incoming().id == assetId
+          && incoming().clientId == clientId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && (incoming().createdByUid == request.auth.uid || isAdmin())
+          && canAccessClient(clientId);
+        allow update: if isVerified()
+          && isValidId(clientId)
+          && isValidId(assetId)
+          && isValidMediaAssetRecord(incoming())
+          && incoming().id == existing().id
+          && incoming().clientId == existing().clientId
+          && incoming().createdByUid == existing().createdByUid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'clientContactEmail',
+            'url',
+            'kind',
+            'sourceType',
+            'sourceId',
+            'label',
+            'updatedAt'
+          ])
+          && canAccessClient(clientId);
+        allow delete: if isValidId(clientId) && isValidId(assetId) && canAccessClient(clientId);
+      }
+
+      match /devices/{deviceId} {
+        allow get: if isValidId(clientId) && isValidId(deviceId) && canAccessClient(clientId);
+        allow list: if isVerified() && (
+          resource.data.createdByUid == request.auth.uid ||
+          (resource.data.clientContactEmail != '' && resource.data.clientContactEmail == request.auth.token.email) ||
+          isBootstrapAdmin()
+        );
+        allow create: if isVerified()
+          && isValidId(clientId)
+          && isValidId(deviceId)
+          && isValidDeviceScreenRecord(incoming())
+          && incoming().id == deviceId
+          && incoming().clientId == clientId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && (incoming().createdByUid == request.auth.uid || isAdmin())
+          && canAccessClient(clientId);
+        allow update: if isVerified()
+          && isValidId(clientId)
+          && isValidId(deviceId)
+          && isValidDeviceScreenRecord(incoming())
+          && incoming().id == existing().id
+          && incoming().clientId == existing().clientId
+          && incoming().createdByUid == existing().createdByUid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'clientContactEmail',
+            'name',
+            'locationZone',
+            'orientation',
+            'pairingCode',
+            'status',
+            'sortOrder',
+            'updatedAt'
+          ])
+          && canAccessClient(clientId);
+        allow delete: if isValidId(clientId) && isValidId(deviceId) && canAccessClient(clientId);
+      }
+    }
+
+    match /networkAds/{adId} {
+      allow get: if isValidId(adId) && (isAdmin() || (isVerified() && existing().active == true));
+      allow list: if isBootstrapAdmin()
+        || (isVerified() && resource.data.createdByUid == request.auth.uid)
+        || (isVerified() && resource.data.active == true);
+      allow create: if isVerified()
+        && isAdmin()
+        && isValidId(adId)
+        && isValidAdminNetworkAd(incoming())
+        && incoming().id == adId
+        && incoming().createdByUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isAdmin()
+        && isValidId(adId)
+        && isValidAdminNetworkAd(incoming())
+        && incoming().id == existing().id
+        && incoming().createdByUid == existing().createdByUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'sponsorName',
+          'headline',
+          'bodyCopy',
+          'mediaUrl',
+          'mediaKind',
+          'durationSec',
+          'categoryTag',
+          'active',
+          'targetScope',
+          'targetClientIds',
+          'updatedAt'
+        ]);
+      allow delete: if isVerified() && isAdmin() && isValidId(adId);
+    }
+  }
+}

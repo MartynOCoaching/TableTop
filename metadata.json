@@ -1,0 +1,8 @@
+{
+  "name": "Tabletop Studio",
+  "description": "Client portal and real-time tabletop device emulator for managing bar and restaurant promotions, menus, daily specials, and partner ad monetization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

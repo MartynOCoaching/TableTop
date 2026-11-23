@@ -1,0 +1,840 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Authenticated portal user profile and server-verified role.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 200
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "role": {
+          "type": "string",
+          "enum": ["client", "super_admin"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "displayName", "role", "createdAt", "updatedAt"]
+    },
+    "AdminUser": {
+      "title": "Super Admin User",
+      "description": "Explicitly authorized Super Admin UID record.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 200
+        },
+        "grantedBy": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "grantedBy", "createdAt"]
+    },
+    "AdminInvite": {
+      "title": "Super Admin Email Invite",
+      "description": "Authorized Super Admin email allowlist entry granted by an existing Super Admin.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 200
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "grantedBy": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["email", "grantedBy", "createdAt"]
+    },
+    "ClientAccount": {
+      "title": "Client Account & Business Profile",
+      "description": "Master client venue table storing business profile, active tabletop units, billing, and ad network opt-in status.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "businessName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "tagline": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "contactEmail": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "ownerUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "accentTheme": {
+          "type": "string",
+          "enum": ["amber", "emerald", "crimson", "slate"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "onboarding", "paused"]
+        },
+        "activeUnits": {
+          "type": "integer"
+        },
+        "monthlyBaseFeePerUnit": {
+          "type": "number"
+        },
+        "monthlySubscriptionFee": {
+          "type": "number"
+        },
+        "monthlyCredit": {
+          "type": "number"
+        },
+        "totalMonthlyBill": {
+          "type": "number"
+        },
+        "adProgramOptedIn": {
+          "type": "boolean"
+        },
+        "creditPerUnitMonthly": {
+          "type": "number"
+        },
+        "rotationRatioLabel": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "adActiveSince": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "lastPublishedAt": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "businessName",
+        "contactEmail",
+        "status",
+        "activeUnits",
+        "monthlySubscriptionFee",
+        "monthlyCredit",
+        "totalMonthlyBill",
+        "adProgramOptedIn",
+        "creditPerUnitMonthly",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PromotionRecord": {
+      "title": "Promotion Slide",
+      "description": "Attract loop slide storing media URL, headline, caption, offer description, CTA label, duration, and date/time playback schedule.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "clientContactEmail": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "sortOrder": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 140
+        },
+        "scheduleLabel": {
+          "type": "string",
+          "maxLength": 140
+        },
+        "subtitle": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "ctaLabel": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "durationSec": {
+          "type": "integer"
+        },
+        "mediaUrl": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "mediaKind": {
+          "type": "string",
+          "enum": ["image", "video"]
+        },
+        "mediaAssetId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "scheduleMode": {
+          "type": "string",
+          "enum": ["always", "scheduled"]
+        },
+        "startDate": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "endDate": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "startTime": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "endTime": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "clientId",
+        "createdByUid",
+        "clientContactEmail",
+        "sortOrder",
+        "title",
+        "scheduleLabel",
+        "subtitle",
+        "ctaLabel",
+        "durationSec",
+        "mediaUrl",
+        "mediaKind",
+        "mediaAssetId",
+        "active",
+        "scheduleMode",
+        "startDate",
+        "endDate",
+        "startTime",
+        "endTime",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MenuCategoryRecord": {
+      "title": "Menu Category",
+      "description": "Tabletop menu category grouping for a client venue.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "clientContactEmail": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "sortOrder": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "clientId",
+        "createdByUid",
+        "clientContactEmail",
+        "name",
+        "sortOrder",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MenuItemRecord": {
+      "title": "Menu Item",
+      "description": "Menu item record storing name, price, category, dietary description, image, availability, and house favorite flag.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "clientContactEmail": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "categoryId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "categoryName": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "categoryIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "categoryNames": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 80
+          }
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "dietaryNotes": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "price": {
+          "type": "number"
+        },
+        "mediaUrl": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "mediaAssetId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "available": {
+          "type": "boolean"
+        },
+        "featured": {
+          "type": "boolean"
+        },
+        "sortOrder": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "clientId",
+        "createdByUid",
+        "clientContactEmail",
+        "categoryId",
+        "categoryName",
+        "name",
+        "description",
+        "dietaryNotes",
+        "price",
+        "mediaUrl",
+        "mediaAssetId",
+        "available",
+        "featured",
+        "sortOrder",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "DailySpecialRecord": {
+      "title": "Daily Special",
+      "description": "Daily special record storing special name, availability window, description, special price, regular price, and media.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "clientContactEmail": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "windowLabel": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "specialPrice": {
+          "type": "number"
+        },
+        "regularPrice": {
+          "type": "number"
+        },
+        "mediaUrl": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "mediaKind": {
+          "type": "string",
+          "enum": ["image", "video"]
+        },
+        "mediaAssetId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "sortOrder": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "clientId",
+        "createdByUid",
+        "clientContactEmail",
+        "title",
+        "windowLabel",
+        "description",
+        "specialPrice",
+        "regularPrice",
+        "mediaUrl",
+        "mediaKind",
+        "mediaAssetId",
+        "active",
+        "sortOrder",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MediaAssetRecord": {
+      "title": "Stored Media Asset",
+      "description": "Registry of stored image and video assets used across promotions, menu items, and daily specials for a client venue.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "clientContactEmail": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["image", "video"]
+        },
+        "sourceType": {
+          "type": "string",
+          "enum": ["promotion", "menu", "special"]
+        },
+        "sourceId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 140
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "clientId",
+        "createdByUid",
+        "clientContactEmail",
+        "url",
+        "kind",
+        "sourceType",
+        "sourceId",
+        "label",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "DeviceScreenRecord": {
+      "title": "Assigned Tabletop Screen",
+      "description": "Assigned tabletop display device linked to a client account, tracking screen name, dining zone, orientation, pairing code, and active/paused status.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "clientContactEmail": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "locationZone": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "orientation": {
+          "type": "string",
+          "enum": ["portrait-9-16", "landscape-10"]
+        },
+        "pairingCode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 24
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "paused"]
+        },
+        "sortOrder": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "clientId",
+        "createdByUid",
+        "clientContactEmail",
+        "name",
+        "locationZone",
+        "orientation",
+        "pairingCode",
+        "status",
+        "sortOrder",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdminNetworkAd": {
+      "title": "Super Admin Sponsored Network Ad",
+      "description": "Sponsored 9:16 portrait or widescreen advertisement managed by Super Admins and linked to opted-in client accounts.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "sponsorName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "headline": {
+          "type": "string",
+          "maxLength": 140
+        },
+        "bodyCopy": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "mediaUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "mediaKind": {
+          "type": "string",
+          "enum": ["image", "video"]
+        },
+        "durationSec": {
+          "type": "integer"
+        },
+        "categoryTag": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "targetScope": {
+          "type": "string",
+          "enum": ["all", "selected"]
+        },
+        "targetClientIds": {
+          "type": "array"
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "sponsorName",
+        "headline",
+        "bodyCopy",
+        "mediaUrl",
+        "mediaKind",
+        "durationSec",
+        "categoryTag",
+        "active",
+        "targetScope",
+        "targetClientIds",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private authenticated user profile documents isolated per owner and Super Admins."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Authoritative Super Admin UID allowlist."
+    },
+    "/adminInvites/{inviteEmail}": {
+      "schema": { "$ref": "#/entities/AdminInvite" },
+      "description": "Authorized Super Admin email invites keyed by lowercase email address."
+    },
+    "/clientAccounts/{clientId}": {
+      "schema": { "$ref": "#/entities/ClientAccount" },
+      "description": "Master client accounts table storing business profile, tabletop units, billing, and ad network opt-in status."
+    },
+    "/clientAccounts/{clientId}/promotions/{promoId}": {
+      "schema": { "$ref": "#/entities/PromotionRecord" },
+      "description": "Client promotions and attract loop slides with copy, durations, and date/time playback schedules."
+    },
+    "/clientAccounts/{clientId}/menuCategories/{categoryId}": {
+      "schema": { "$ref": "#/entities/MenuCategoryRecord" },
+      "description": "Client tabletop menu category definitions."
+    },
+    "/clientAccounts/{clientId}/menuItems/{itemId}": {
+      "schema": { "$ref": "#/entities/MenuItemRecord" },
+      "description": "Client menu items with prices, categories, dietary notes, images, availability, and house favorite flags."
+    },
+    "/clientAccounts/{clientId}/specials/{specialId}": {
+      "schema": { "$ref": "#/entities/DailySpecialRecord" },
+      "description": "Client daily specials with availability windows, special/regular pricing, descriptions, and media."
+    },
+    "/clientAccounts/{clientId}/mediaAssets/{assetId}": {
+      "schema": { "$ref": "#/entities/MediaAssetRecord" },
+      "description": "Registry of stored image and video assets attached to a client venue."
+    },
+    "/clientAccounts/{clientId}/devices/{deviceId}": {
+      "schema": { "$ref": "#/entities/DeviceScreenRecord" },
+      "description": "Assigned tabletop display screens attached to a client account."
+    },
+    "/networkAds/{adId}": {
+      "schema": { "$ref": "#/entities/AdminNetworkAd" },
+      "description": "Super Admin managed sponsored ad creatives distributed to opted-in client displays."
+    }
+  }
+}
